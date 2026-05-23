@@ -246,14 +246,26 @@ class MultiTierGuardrails:
         max_prompt_chars: int = 8_000,
         max_arg_chars: int = 2_000,
         judge: Optional["LLMJudge"] = None,
-        enable_judge: bool = JUDGE_ENABLED,
+        enable_judge: Optional[bool] = None,
     ) -> None:
         self.allowed_tools = set(allowed_tools)
         self.max_prompt_chars = max_prompt_chars
         self.max_arg_chars = max_arg_chars
         self.decisions: list[GuardrailDecision] = []
-        self.enable_judge = enable_judge
-        self.judge = judge if judge is not None else (LLMJudge() if enable_judge else None)
+        # Resolution order:
+        #   1. explicit enable_judge arg wins
+        #   2. else: explicit judge instance implies enable
+        #   3. else: fall back to the env-driven JUDGE_ENABLED flag
+        if enable_judge is None:
+            self.enable_judge = True if judge is not None else JUDGE_ENABLED
+        else:
+            self.enable_judge = enable_judge
+        if judge is not None:
+            self.judge = judge
+        elif self.enable_judge:
+            self.judge = LLMJudge()
+        else:
+            self.judge = None
 
     # -- Input rail ---------------------------------------------------------
 
